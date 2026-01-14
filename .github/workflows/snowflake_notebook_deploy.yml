@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch: # Allows you to trigger manually with a button
 
 jobs:
   deploy:
@@ -18,7 +19,6 @@ jobs:
       - name: Deploy Notebook to Snowflake
         run: |
           # 1. Update Snowflake's internal Git mirror
-          # We pass all credentials as flags to avoid connection configuration errors
           snow sql -q "ALTER GIT REPOSITORY NPO_TEST.PUBLIC.MY_GIT_REPO FETCH" \
             --account "${{ secrets.SNOWFLAKE_ACCOUNT }}" \
             --user "${{ secrets.SNOWFLAKE_USER }}" \
