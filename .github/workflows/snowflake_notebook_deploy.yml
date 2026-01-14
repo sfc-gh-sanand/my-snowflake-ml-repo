@@ -23,25 +23,18 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Test Connection
-        run: |
-          # Testing connection with a simple version check
-          snow sql -x -q "SELECT CURRENT_VERSION(), CURRENT_USER(), CURRENT_ROLE()" \
-            --account "$SNOWFLAKE_ACCOUNT" \
-            --user "$SNOWFLAKE_USER" \
-            --password "$SNOWFLAKE_PASSWORD"
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install Snowflake CLI directly
+      # THIS STEP IS CRITICAL: It installs the 'snow' command for this specific run
+      - name: Install Snowflake CLI
         run: pip install snowflake-cli-labs
 
-      - name: Execute Snowflake Commands
+      - name: Execute Snowflake Project Commands
         run: |
-          # 1. Ensure the Internal Stage exists to hold the Project files
+          # 1. Create the Stage for the Notebook Project
           snow sql -x -q "CREATE STAGE IF NOT EXISTS $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE" \
             --account "$SNOWFLAKE_ACCOUNT" \
             --user "$SNOWFLAKE_USER" \
@@ -49,8 +42,7 @@ jobs:
             --role "$SNOWFLAKE_ROLE" \
             --warehouse "$SNOWFLAKE_WAREHOUSE"
 
-          # 2. Upload the notebook file from GitHub to the Snowflake Internal Stage
-          # AUTO_COMPRESS=FALSE is important for Notebook Projects to read the .ipynb correctly
+          # 2. Upload the notebook file
           snow sql -x -q "PUT file://notebooks/ml_model/train.ipynb @$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE" \
             --account "$SNOWFLAKE_ACCOUNT" \
             --user "$SNOWFLAKE_USER" \
@@ -58,7 +50,7 @@ jobs:
             --role "$SNOWFLAKE_ROLE" \
             --warehouse "$SNOWFLAKE_WAREHOUSE"
 
-          # 3. Create or Replace the Notebook Project referencing the Internal Stage
+          # 3. Create the Notebook Project Object
           snow sql -x -q "
             CREATE OR REPLACE NOTEBOOK $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK
             FROM '@$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE'
