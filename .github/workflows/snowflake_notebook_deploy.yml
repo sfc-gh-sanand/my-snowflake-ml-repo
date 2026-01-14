@@ -17,6 +17,7 @@ jobs:
 
       - name: Deploy Notebook to Snowflake
         env:
+          SNOWFLAKE_DEFAULT_CONNECTION_NAME: deploy
           SNOWFLAKE_CONNECTIONS_DEPLOY_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_CONNECTIONS_DEPLOY_USER: ${{ secrets.SNOWFLAKE_USER }}
           SNOWFLAKE_CONNECTIONS_DEPLOY_PASSWORD: ${{ secrets.SNOWFLAKE_PAT }}
