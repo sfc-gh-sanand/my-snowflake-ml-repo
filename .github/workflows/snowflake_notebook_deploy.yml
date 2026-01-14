@@ -28,7 +28,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      # THIS STEP IS CRITICAL: It installs the 'snow' command for this specific run
       - name: Install Snowflake CLI
         run: pip install snowflake-cli-labs
 
@@ -43,6 +42,7 @@ jobs:
             --warehouse "$SNOWFLAKE_WAREHOUSE"
 
           # 2. Upload the notebook file
+          # Double check that 'notebooks/ml_model/train.ipynb' exists in your repo
           snow sql -x -q "PUT file://notebooks/ml_model/train.ipynb @$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE" \
             --account "$SNOWFLAKE_ACCOUNT" \
             --user "$SNOWFLAKE_USER" \
