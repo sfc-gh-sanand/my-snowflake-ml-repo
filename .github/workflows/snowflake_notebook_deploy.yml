@@ -1,39 +1,45 @@
 name: Snowflake Notebook Deployment
+run-name: Deploying Notebook by ${{ github.actor }}
 
 on:
   push:
-    branches:
-      - main
+    branches: [main] # Triggers when code is merged into main
   workflow_dispatch: # Allows you to trigger manually with a button
 
+permissions:
+  contents: read
+
 jobs:
-  deploy:
+  deploy-notebook:
+    name: "Deploy Notebook to Snowflake"
     runs-on: ubuntu-latest
+    
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PAT }} # Using your PAT as the password
+      SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
+      SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+
     steps:
-      - name: Checkout Repository
+      - name: Check out repository code
         uses: actions/checkout@v4
 
       - name: Install Snowflake CLI
-        run: pip install snowflake-cli-labs
+        uses: snowflakedb/snowflake-cli-action@v2.0
+        with:
+          use-oidc: false # Set to false because you are using a PAT/Password
 
-      - name: Deploy Notebook to Snowflake
+      - name: Update Git Repository in Snowflake
         run: |
-          # 1. Update Snowflake's internal Git mirror
-          snow sql -q "ALTER GIT REPOSITORY NPO_TEST.PUBLIC.MY_GIT_REPO FETCH" \
-            --account "${{ secrets.SNOWFLAKE_ACCOUNT }}" \
-            --user "${{ secrets.SNOWFLAKE_USER }}" \
-            --password "${{ secrets.SNOWFLAKE_PAT }}" \
-            --role "${{ vars.SNOWFLAKE_ROLE }}" \
-            --warehouse "${{ vars.SNOWFLAKE_WAREHOUSE }}"
+          snow sql -q "ALTER GIT REPOSITORY NPO_TEST.PUBLIC.MY_GIT_REPO FETCH"
 
-          # 2. Deploy the Notebook object
+      - name: Create or Replace Notebook
+        run: |
           snow sql -q "
             CREATE OR REPLACE NOTEBOOK ${{ vars.SNOWFLAKE_DATABASE }}.${{ vars.SNOWFLAKE_SCHEMA }}.ML_TRAIN_NOTEBOOK
             FROM '@NPO_TEST.PUBLIC.MY_GIT_REPO/branches/main/notebooks/ml_model/'
             MAIN_FILE = 'train.ipynb'
-            QUERY_WAREHOUSE = '${{ vars.SNOWFLAKE_WAREHOUSE }}';" \
-            --account "${{ secrets.SNOWFLAKE_ACCOUNT }}" \
-            --user "${{ secrets.SNOWFLAKE_USER }}" \
-            --password "${{ secrets.SNOWFLAKE_PAT }}" \
-            --role "${{ vars.SNOWFLAKE_ROLE }}" \
-            --warehouse "${{ vars.SNOWFLAKE_WAREHOUSE }}"
+            QUERY_WAREHOUSE = '${{ vars.SNOWFLAKE_WAREHOUSE }}';"
