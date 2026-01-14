@@ -23,6 +23,14 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
+      - name: Test Connection
+        run: |
+          # Testing connection with a simple version check
+          snow sql -x -q "SELECT CURRENT_VERSION(), CURRENT_USER(), CURRENT_ROLE()" \
+            --account "$SNOWFLAKE_ACCOUNT" \
+            --user "$SNOWFLAKE_USER" \
+            --password "$SNOWFLAKE_PASSWORD"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
