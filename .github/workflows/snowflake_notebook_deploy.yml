@@ -16,20 +16,24 @@ jobs:
         run: pip install snowflake-cli-labs
 
       - name: Deploy Notebook to Snowflake
-        env:
-          # Use 'DEFAULT' instead of 'DEPLOY' to bypass manual connection configuration
-          SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          SNOWFLAKE_CONNECTIONS_DEFAULT_USER: ${{ secrets.SNOWFLAKE_USER }}
-          SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD: ${{ secrets.SNOWFLAKE_PAT }}
-          SNOWFLAKE_CONNECTIONS_DEFAULT_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
-          SNOWFLAKE_CONNECTIONS_DEFAULT_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
         run: |
-          # 1. Update Snowflake's internal Git mirror (removed -c deploy)
-          snow sql -q "ALTER GIT REPOSITORY NPO_TEST.PUBLIC.MY_GIT_REPO FETCH"
+          # 1. Update Snowflake's internal Git mirror
+          # We pass all credentials as flags to avoid connection configuration errors
+          snow sql -q "ALTER GIT REPOSITORY NPO_TEST.PUBLIC.MY_GIT_REPO FETCH" \
+            --account "${{ secrets.SNOWFLAKE_ACCOUNT }}" \
+            --user "${{ secrets.SNOWFLAKE_USER }}" \
+            --password "${{ secrets.SNOWFLAKE_PAT }}" \
+            --role "${{ vars.SNOWFLAKE_ROLE }}" \
+            --warehouse "${{ vars.SNOWFLAKE_WAREHOUSE }}"
 
-          # 2. Deploy the Notebook object (removed -c deploy)
+          # 2. Deploy the Notebook object
           snow sql -q "
             CREATE OR REPLACE NOTEBOOK ${{ vars.SNOWFLAKE_DATABASE }}.${{ vars.SNOWFLAKE_SCHEMA }}.ML_TRAIN_NOTEBOOK
             FROM '@NPO_TEST.PUBLIC.MY_GIT_REPO/branches/main/notebooks/ml_model/'
             MAIN_FILE = 'train.ipynb'
-            QUERY_WAREHOUSE = '${{ vars.SNOWFLAKE_WAREHOUSE }}';"
+            QUERY_WAREHOUSE = '${{ vars.SNOWFLAKE_WAREHOUSE }}';" \
+            --account "${{ secrets.SNOWFLAKE_ACCOUNT }}" \
+            --user "${{ secrets.SNOWFLAKE_USER }}" \
+            --password "${{ secrets.SNOWFLAKE_PAT }}" \
+            --role "${{ vars.SNOWFLAKE_ROLE }}" \
+            --warehouse "${{ vars.SNOWFLAKE_WAREHOUSE }}"
