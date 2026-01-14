@@ -1,5 +1,5 @@
 name: Snowflake Notebook Deployment
-run-name: Deploying Notebook by ${{ github.actor }}
+run-name: Deploying Notebook Project by ${{ github.actor }}
 
 on:
   push:
@@ -33,17 +33,27 @@ jobs:
 
       - name: Execute Snowflake Commands
         run: |
-          # We use the -x flag and pass credentials directly to avoid config errors
-          snow sql -x -q "ALTER GIT REPOSITORY NPO_TEST.PUBLIC.MY_GIT_REPO FETCH" \
+          # 1. Ensure the Internal Stage exists to hold the Project files
+          snow sql -x -q "CREATE STAGE IF NOT EXISTS $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE" \
             --account "$SNOWFLAKE_ACCOUNT" \
             --user "$SNOWFLAKE_USER" \
             --password "$SNOWFLAKE_PASSWORD" \
             --role "$SNOWFLAKE_ROLE" \
             --warehouse "$SNOWFLAKE_WAREHOUSE"
 
+          # 2. Upload the notebook file from GitHub to the Snowflake Internal Stage
+          # AUTO_COMPRESS=FALSE is important for Notebook Projects to read the .ipynb correctly
+          snow sql -x -q "PUT file://notebooks/ml_model/train.ipynb @$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE" \
+            --account "$SNOWFLAKE_ACCOUNT" \
+            --user "$SNOWFLAKE_USER" \
+            --password "$SNOWFLAKE_PASSWORD" \
+            --role "$SNOWFLAKE_ROLE" \
+            --warehouse "$SNOWFLAKE_WAREHOUSE"
+
+          # 3. Create or Replace the Notebook Project referencing the Internal Stage
           snow sql -x -q "
             CREATE OR REPLACE NOTEBOOK $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK
-            FROM '@NPO_TEST.PUBLIC.MY_GIT_REPO/branches/main/notebooks/ml_model/'
+            FROM '@$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE'
             MAIN_FILE = 'train.ipynb'
             QUERY_WAREHOUSE = '$SNOWFLAKE_WAREHOUSE';" \
             --account "$SNOWFLAKE_ACCOUNT" \
