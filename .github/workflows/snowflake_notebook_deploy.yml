@@ -6,12 +6,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
   deploy-notebook:
-    name: "Deploy Notebook to Snowflake"
     runs-on: ubuntu-latest
     
     env:
@@ -27,22 +23,31 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Install Snowflake CLI
-        # Fixed: Changed from @v1 to @v1.1.0
-        uses: snowflakedb/snowflake-cli-action@v1.1.0
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          use-oidc: false
+          python-version: '3.11'
 
-      - name: Update Git Repository in Snowflake
-        run: |
-          # Added -x flag to force temporary connection using env variables
-          snow sql -x -q "ALTER GIT REPOSITORY NPO_TEST.PUBLIC.MY_GIT_REPO FETCH"
+      - name: Install Snowflake CLI directly
+        run: pip install snowflake-cli-labs
 
-      - name: Create or Replace Notebook
+      - name: Execute Snowflake Commands
         run: |
-          # Added -x flag to bypass 'default' connection requirement
+          # We use the -x flag and pass credentials directly to avoid config errors
+          snow sql -x -q "ALTER GIT REPOSITORY NPO_TEST.PUBLIC.MY_GIT_REPO FETCH" \
+            --account "$SNOWFLAKE_ACCOUNT" \
+            --user "$SNOWFLAKE_USER" \
+            --password "$SNOWFLAKE_PASSWORD" \
+            --role "$SNOWFLAKE_ROLE" \
+            --warehouse "$SNOWFLAKE_WAREHOUSE"
+
           snow sql -x -q "
-            CREATE OR REPLACE NOTEBOOK ${{ vars.SNOWFLAKE_DATABASE }}.${{ vars.SNOWFLAKE_SCHEMA }}.ML_TRAIN_NOTEBOOK
+            CREATE OR REPLACE NOTEBOOK $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK
             FROM '@NPO_TEST.PUBLIC.MY_GIT_REPO/branches/main/notebooks/ml_model/'
             MAIN_FILE = 'train.ipynb'
-            QUERY_WAREHOUSE = '${{ vars.SNOWFLAKE_WAREHOUSE }}';"
+            QUERY_WAREHOUSE = '$SNOWFLAKE_WAREHOUSE';" \
+            --account "$SNOWFLAKE_ACCOUNT" \
+            --user "$SNOWFLAKE_USER" \
+            --password "$SNOWFLAKE_PASSWORD" \
+            --role "$SNOWFLAKE_ROLE" \
+            --warehouse "$SNOWFLAKE_WAREHOUSE"
