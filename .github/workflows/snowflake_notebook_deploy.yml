@@ -3,8 +3,8 @@ run-name: Deploying Notebook by ${{ github.actor }}
 
 on:
   push:
-    branches: [main] # Triggers when code is merged into main
-  workflow_dispatch: # Allows you to trigger manually with a button
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,7 +17,7 @@ jobs:
     env:
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PAT }} # Using your PAT as the password
+      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PAT }}
       SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
       SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
       SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
@@ -28,17 +28,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Snowflake CLI
-        uses: snowflakedb/snowflake-cli-action@v2.0
+        uses: snowflakedb/snowflake-cli-action@v1
         with:
-          use-oidc: false # Set to false because you are using a PAT/Password
+          use-oidc: false
 
       - name: Update Git Repository in Snowflake
         run: |
-          snow sql -q "ALTER GIT REPOSITORY NPO_TEST.PUBLIC.MY_GIT_REPO FETCH"
+          # -x bypasses the 'connection not configured' error by using env variables
+          snow sql -x -q "ALTER GIT REPOSITORY NPO_TEST.PUBLIC.MY_GIT_REPO FETCH"
 
       - name: Create or Replace Notebook
         run: |
-          snow sql -q "
+          # -x builds a temporary connection for this specific SQL command
+          snow sql -x -q "
             CREATE OR REPLACE NOTEBOOK ${{ vars.SNOWFLAKE_DATABASE }}.${{ vars.SNOWFLAKE_SCHEMA }}.ML_TRAIN_NOTEBOOK
             FROM '@NPO_TEST.PUBLIC.MY_GIT_REPO/branches/main/notebooks/ml_model/'
             MAIN_FILE = 'train.ipynb'
