@@ -33,31 +33,28 @@ jobs:
 
       - name: Execute Snowflake Project Commands
         run: |
-          # 1. Create the Stage for the Notebook Project
-          snow sql -x -q "CREATE STAGE IF NOT EXISTS $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE" \
-            --account "$SNOWFLAKE_ACCOUNT" \
+          # We run everything in ONE 'snow sql' call to keep the Temporary Stage alive
+          snow sql -x --account "$SNOWFLAKE_ACCOUNT" \
             --user "$SNOWFLAKE_USER" \
             --password "$SNOWFLAKE_PASSWORD" \
             --role "$SNOWFLAKE_ROLE" \
-            --warehouse "$SNOWFLAKE_WAREHOUSE"
+            --warehouse "$SNOWFLAKE_WAREHOUSE" \
+            -q "
+              USE DATABASE $SNOWFLAKE_DATABASE;
+              USE SCHEMA $SNOWFLAKE_SCHEMA;
 
-          # 2. Upload the notebook file
-          # Double check that 'notebooks/ml_model/train.ipynb' exists in your repo
-          snow sql -x -q "PUT file://notebooks/ml_model/train.ipynb @$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE" \
-            --account "$SNOWFLAKE_ACCOUNT" \
-            --user "$SNOWFLAKE_USER" \
-            --password "$SNOWFLAKE_PASSWORD" \
-            --role "$SNOWFLAKE_ROLE" \
-            --warehouse "$SNOWFLAKE_WAREHOUSE"
+              -- 1. Create a TEMPORARY Stage (exists only for this run)
+              CREATE TEMPORARY STAGE IF NOT EXISTS NOTEBOOK_PROJECT_STAGE;
 
-          # 3. Create the Notebook Project Object
-          snow sql -x -q "
-            CREATE OR REPLACE NOTEBOOK $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK
-            FROM '@$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE'
-            MAIN_FILE = 'train.ipynb'
-            QUERY_WAREHOUSE = '$SNOWFLAKE_WAREHOUSE';" \
-            --account "$SNOWFLAKE_ACCOUNT" \
-            --user "$SNOWFLAKE_USER" \
-            --password "$SNOWFLAKE_PASSWORD" \
-            --role "$SNOWFLAKE_ROLE" \
-            --warehouse "$SNOWFLAKE_WAREHOUSE"
+              -- 2. Upload the notebook file
+              PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+
+              -- 3. Create or Replace the Notebook Project
+              CREATE OR REPLACE NOTEBOOK PROJECT ML_TRAIN_NOTEBOOK
+              FROM '@NOTEBOOK_PROJECT_STAGE'
+              MAIN_FILE = 'train.ipynb'
+              QUERY_WAREHOUSE = '$SNOWFLAKE_WAREHOUSE';
+
+              -- 4. Verification: This will print the status to your GitHub logs
+              SHOW NOTEBOOK PROJECTS LIKE 'ML_TRAIN_NOTEBOOK';
+            "
