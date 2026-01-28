@@ -51,6 +51,5 @@ jobs:
 
               -- 3. Create or Replace the Notebook Project
              CREATE OR REPLACE NOTEBOOK PROJECT ML_TRAIN_NOTEBOOK
-              FROM '@NOTEBOOK_PROJECT_STAGE'
-              MAIN_FILE = 'train.ipynb';
+              FROM '@NOTEBOOK_PROJECT_STAGE1';
             "
