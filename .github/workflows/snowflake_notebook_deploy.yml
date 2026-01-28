@@ -47,7 +47,7 @@ jobs:
               CREATE  STAGE IF NOT EXISTS NOTEBOOK_PROJECT_STAGE1;
 
               -- 2. Upload the notebook file
-              PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE1 AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+              PUT file://notebooks/ml_model/ml_test.ipynb @NOTEBOOK_PROJECT_STAGE1 AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 
               -- 3. Create or Replace the Notebook Project
              CREATE OR REPLACE NOTEBOOK PROJECT ML_TRAIN_NOTEBOOK1
