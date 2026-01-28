@@ -44,12 +44,13 @@ jobs:
               USE SCHEMA $SNOWFLAKE_SCHEMA;
 
               -- 1. Create a TEMPORARY Stage (exists only for this run)
-              CREATE TEMPORARY STAGE IF NOT EXISTS NOTEBOOK_PROJECT_STAGE;
+              CREATE TEMPORARY STAGE IF NOT EXISTS NOTEBOOK_PROJECT_STAGE1;
 
               -- 2. Upload the notebook file
-              PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+              PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE1 AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 
               -- 3. Create or Replace the Notebook Project
-              CREATE OR REPLACE NOTEBOOK PROJECT ML_TRAIN_NOTEBOOK
+             CREATE OR REPLACE NOTEBOOK PROJECT ML_TRAIN_NOTEBOOK
               FROM '@NOTEBOOK_PROJECT_STAGE'
+              MAIN_FILE = 'train.ipynb';
             "
