@@ -43,8 +43,8 @@ jobs:
               USE DATABASE $SNOWFLAKE_DATABASE;
               USE SCHEMA $SNOWFLAKE_SCHEMA;
 
-              -- 1. Create a TEMPORARY Stage (exists only for this run)
-              CREATE TEMPORARY STAGE IF NOT EXISTS NOTEBOOK_PROJECT_STAGE1;
+              -- 1. Create a  Stage (exists only for this run)
+              CREATE  STAGE IF NOT EXISTS NOTEBOOK_PROJECT_STAGE1;
 
               -- 2. Upload the notebook file
               PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE1 AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
