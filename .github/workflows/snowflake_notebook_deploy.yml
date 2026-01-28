@@ -1,6 +1,6 @@
 name: Snowflake Notebook Deployment
 run-name: Deploying Notebook Project by ${{ github.actor }}
-
+ 
 on:
   push:
     branches: [main]
