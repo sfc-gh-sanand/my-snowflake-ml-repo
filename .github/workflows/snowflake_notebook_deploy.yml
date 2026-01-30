@@ -10,16 +10,15 @@ jobs:
   deploy-notebook:
     runs-on: ubuntu-latest
     
-    # We map these precisely to the Snowflake CLI's internal connection logic
     env:
-      SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_CONNECTIONS_DEFAULT_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD: ${{ secrets.SNOWFLAKE_PAT }}
-      SNOWFLAKE_CONNECTIONS_DEFAULT_AUTHENTICATOR: 'snowflake' # Forces username/password auth
-      SNOWFLAKE_CONNECTIONS_DEFAULT_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
-      SNOWFLAKE_CONNECTIONS_DEFAULT_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
-      SNOWFLAKE_CONNECTIONS_DEFAULT_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
-      SNOWFLAKE_CONNECTIONS_DEFAULT_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+      # Keep your existing secret names
+      SN_ACC: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SN_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SN_PWD: ${{ secrets.SNOWFLAKE_PAT }} # This is the "Password"
+      SN_DB: ${{ vars.SNOWFLAKE_DATABASE }}
+      SN_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
+      SN_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+      SN_WH: ${{ vars.SNOWFLAKE_WAREHOUSE }}
 
     steps:
       - name: Check out repository code
@@ -33,24 +32,34 @@ jobs:
       - name: Install Snowflake CLI
         run: pip install snowflake-cli-labs
 
-      - name: Verify Connection
-        run: snow connection test
-
       - name: Execute Snowflake Project Commands
         run: |
-          # Using -x for expanded output and quoting to handle multi-line SQL
-          # The CLI will automatically use the 'DEFAULT' connection from the env vars above
-          snow sql -x -q "
-              USE DATABASE ${{ vars.SNOWFLAKE_DATABASE }};
-              USE SCHEMA ${{ vars.SNOWFLAKE_SCHEMA }};
+          # The key change is --temporary-connection and --authenticator
+          snow sql -x \
+            --temporary-connection \
+            --account "$SN_ACC" \
+            --user "$SN_USER" \
+            --password "$SN_PWD" \
+            --role "$SN_ROLE" \
+            --warehouse "$SN_WH" \
+            --authenticator "snowflake" \
+            -q "
+              USE DATABASE $SN_DB;
+              USE SCHEMA $SN_SCHEMA;
 
-              -- 1. Upload the notebook file
-              PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE1 
-                AUTO_COMPRESS=FALSE 
-                OVERWRITE=TRUE;
+              -- 1. Create Stage
+              CREATE STAGE IF NOT EXISTS NOTEBOOK_PROJECT_STAGE;
 
-              -- 2. Create or Replace the Notebook Project
-              CREATE OR REPLACE NOTEBOOK PROJECT ML_TRAIN_NOTEBOOK1
-                FROM '@NOTEBOOK_PROJECT_STAGE1';
+              -- 2. Upload the notebook
+              PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+
+              -- 3. Create or Replace Notebook Project
+              CREATE OR REPLACE NOTEBOOK PROJECT ML_TRAIN_NOTEBOOK
+                FROM '@NOTEBOOK_PROJECT_STAGE';
+
+              -- 4. Verification & Versioning (The two commands you wanted to add)
+              LS 'snow://notebook_project/$SN_DB.$SN_SCHEMA.ML_TRAIN_NOTEBOOK/versions/head/';
               
-              -- 3. List the files in the head version (Verification
+              ALTER NOTEBOOK PROJECT $SN_DB.$SN_SCHEMA.ML_TRAIN_NOTEBOOK 
+                ADD VERSION FROM '@NOTEBOOK_PROJECT_STAGE';
+            "
