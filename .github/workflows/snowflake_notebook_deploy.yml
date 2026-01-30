@@ -52,9 +52,9 @@ jobs:
               FROM '@NOTEBOOK_PROJECT_STAGE1';
               
               -- 3. List files for Notebook Project 2
-              LS 'snow://notebook_project/$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK2/versions/head/';
+              LS 'snow://notebook_project/$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK3/versions/head/';
 
               -- 4. Alter Notebook Project 2 to add version
-              ALTER NOTEBOOK PROJECT $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK2 
+              ALTER NOTEBOOK PROJECT $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK3 
               ADD VERSION FROM '@NOTEBOOK_PROJECT_STAGE1';
             "
