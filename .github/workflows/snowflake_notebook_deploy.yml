@@ -11,14 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
-      # Keep your existing secret names
-      SN_ACC: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SN_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SN_PWD: ${{ secrets.SNOWFLAKE_PAT }} # This is the "Password"
-      SN_DB: ${{ vars.SNOWFLAKE_DATABASE }}
-      SN_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
-      SN_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
-      SN_WH: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PAT }}
+      SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
+      SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
 
     steps:
       - name: Check out repository code
@@ -34,32 +33,28 @@ jobs:
 
       - name: Execute Snowflake Project Commands
         run: |
-          # The key change is --temporary-connection and --authenticator
-          snow sql -x \
-            --temporary-connection \
-            --account "$SN_ACC" \
-            --user "$SN_USER" \
-            --password "$SN_PWD" \
-            --role "$SN_ROLE" \
-            --warehouse "$SN_WH" \
+          # Added --authenticator "snowflake" to fix the "Token Expired" error
+          snow sql -x --account "$SNOWFLAKE_ACCOUNT" \
+            --user "$SNOWFLAKE_USER" \
+            --password "$SNOWFLAKE_PASSWORD" \
+            --role "$SNOWFLAKE_ROLE" \
+            --warehouse "$SNOWFLAKE_WAREHOUSE" \
             --authenticator "snowflake" \
             -q "
-              USE DATABASE $SN_DB;
-              USE SCHEMA $SN_SCHEMA;
+              USE DATABASE $SNOWFLAKE_DATABASE;
+              USE SCHEMA $SNOWFLAKE_SCHEMA;
 
-              -- 1. Create Stage
-              CREATE STAGE IF NOT EXISTS NOTEBOOK_PROJECT_STAGE;
+              -- 1. Upload the notebook file (Stage creation removed as requested)
+              PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE1 AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 
-              -- 2. Upload the notebook
-              PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-
-              -- 3. Create or Replace Notebook Project
-              CREATE OR REPLACE NOTEBOOK PROJECT ML_TRAIN_NOTEBOOK
-                FROM '@NOTEBOOK_PROJECT_STAGE';
-
-              -- 4. Verification & Versioning (The two commands you wanted to add)
-              LS 'snow://notebook_project/$SN_DB.$SN_SCHEMA.ML_TRAIN_NOTEBOOK/versions/head/';
+              -- 2. Create Notebook Project 3
+              CREATE NOTEBOOK PROJECT IF NOT EXISTS ML_TRAIN_NOTEBOOK3
+              FROM '@NOTEBOOK_PROJECT_STAGE1';
               
-              ALTER NOTEBOOK PROJECT $SN_DB.$SN_SCHEMA.ML_TRAIN_NOTEBOOK 
-                ADD VERSION FROM '@NOTEBOOK_PROJECT_STAGE';
+              -- 3. List files for Notebook Project 2
+              LS 'snow://notebook_project/$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK2/versions/head/';
+
+              -- 4. Alter Notebook Project 2 to add version
+              ALTER NOTEBOOK PROJECT $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK2 
+              ADD VERSION FROM '@NOTEBOOK_PROJECT_STAGE1';
             "
