@@ -1,6 +1,6 @@
 name: Snowflake Notebook Deployment
 run-name: Deploying Notebook Project by ${{ github.actor }}
- 
+
 on:
   push:
     branches: [main]
@@ -33,7 +33,6 @@ jobs:
 
       - name: Execute Snowflake Project Commands
         run: |
-          # We run everything in ONE 'snow sql' call to keep the Temporary Stage alive
           snow sql -x --account "$SNOWFLAKE_ACCOUNT" \
             --user "$SNOWFLAKE_USER" \
             --password "$SNOWFLAKE_PASSWORD" \
@@ -43,13 +42,17 @@ jobs:
               USE DATABASE $SNOWFLAKE_DATABASE;
               USE SCHEMA $SNOWFLAKE_SCHEMA;
 
-              -- 1. Create a  Stage (exists only for this run)
-              CREATE  STAGE IF NOT EXISTS NOTEBOOK_PROJECT_STAGE1;
-
-              -- 2. Upload the notebook file
+              -- 1. Upload the notebook file to the stage
               PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE1 AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 
-              -- 3. Create or Replace the Notebook Project
-             CREATE OR REPLACE NOTEBOOK PROJECT ML_TRAIN_NOTEBOOK1
-              FROM '@NOTEBOOK_PROJECT_STAGE1';
+              -- 2. Create or Replace the Notebook Project
+              CREATE OR REPLACE NOTEBOOK PROJECT ML_TRAIN_NOTEBOOK1
+                FROM '@NOTEBOOK_PROJECT_STAGE1';
+              
+              -- 3. List the files in the head version (Verification)
+              LS 'snow://notebook_project/$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK1/versions/head/';
+
+              -- 4. Explicitly add/refresh version from the stage
+              ALTER NOTEBOOK PROJECT $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK1 
+                ADD VERSION FROM '@NOTEBOOK_PROJECT_STAGE1';
             "
