@@ -57,11 +57,5 @@ jobs:
               -- 4. Alter Notebook Project 2 to add version
               ALTER NOTEBOOK PROJECT $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK3 
               ADD VERSION FROM '@NOTEBOOK_PROJECT_STAGE1';
-              --5. Execute NPO
-              EXECUTE NOTEBOOK PROJECT \"$SNOWFLAKE_DATABASE\".\"$SNOWFLAKE_SCHEMA\".\"ML_TRAIN_NOTEBOOK3\"
-                MAIN_FILE = 'train.ipynb'
-                COMPUTE_POOL = \"SYSTEM_COMPUTE_POOL_CPU\"
-                RUNTIME = 'V2.2-CPU-PY3.12'
-                QUERY_WAREHOUSE = \"$SNOWFLAKE_WAREHOUSE\"
-                ARGUMENTS = '$SNOWFLAKE_DATABASE $SNOWFLAKE_SCHEMA $SNOWFLAKE_WAREHOUSE';
+           
             "
