@@ -1,23 +1,13 @@
-name: Snowflake Notebook Deployment
-run-name: Deploying Notebook Project by ${{ github.actor }}
-
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-jobs:
-  deploy-notebook:
-    runs-on: ubuntu-latest
-    
-    env:
-      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PAT }}
-      SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
-      SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
-      SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
-      SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+env:
+      # Standard Snowflake CLI v2 environment variables
+      SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_PASSWORD: ${{ secrets.SNOWFLAKE_PAT }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_AUTHENTICATOR: 'snowflake' # Forces password auth
+      SNOWFLAKE_CONNECTIONS_DEFAULT_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_SCHEMA: ${{ vars.SNOWFLAKE_SCHEMA }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
 
     steps:
       - name: Check out repository code
@@ -33,31 +23,23 @@ jobs:
 
       - name: Execute Snowflake Project Commands
         run: |
-          # 1. Create the Stage for the Notebook Project
-          snow sql -x -q "CREATE STAGE IF NOT EXISTS $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE" \
-            --account "$SNOWFLAKE_ACCOUNT" \
-            --user "$SNOWFLAKE_USER" \
-            --password "$SNOWFLAKE_PASSWORD" \
-            --role "$SNOWFLAKE_ROLE" \
-            --warehouse "$SNOWFLAKE_WAREHOUSE"
-
-          # 2. Upload the notebook file
-          # Double check that 'notebooks/ml_model/train.ipynb' exists in your repo
-          snow sql -x -q "PUT file://notebooks/ml_model/train.ipynb @$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE AUTO_COMPRESS=FALSE OVERWRITE=TRUE" \
-            --account "$SNOWFLAKE_ACCOUNT" \
-            --user "$SNOWFLAKE_USER" \
-            --password "$SNOWFLAKE_PASSWORD" \
-            --role "$SNOWFLAKE_ROLE" \
-            --warehouse "$SNOWFLAKE_WAREHOUSE"
-
-          # 3. Create the Notebook Project Object
+          # We no longer pass flags like --password. 
+          # The CLI automatically reads SNOWFLAKE_CONNECTIONS_DEFAULT_...
           snow sql -x -q "
-            CREATE OR REPLACE NOTEBOOK $SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.ML_TRAIN_NOTEBOOK
-            FROM '@$SNOWFLAKE_DATABASE.$SNOWFLAKE_SCHEMA.NOTEBOOK_PROJECT_STAGE'
-            MAIN_FILE = 'train.ipynb'
-            QUERY_WAREHOUSE = '$SNOWFLAKE_WAREHOUSE';" \
-            --account "$SNOWFLAKE_ACCOUNT" \
-            --user "$SNOWFLAKE_USER" \
-            --password "$SNOWFLAKE_PASSWORD" \
-            --role "$SNOWFLAKE_ROLE" \
-            --warehouse "$SNOWFLAKE_WAREHOUSE"
+              USE DATABASE ${{ vars.SNOWFLAKE_DATABASE }};
+              USE SCHEMA ${{ vars.SNOWFLAKE_SCHEMA }};
+
+              -- 1. Upload the notebook file
+              PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE1 AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+
+              -- 2. Create or Replace the Notebook Project
+              CREATE OR REPLACE NOTEBOOK PROJECT ML_TRAIN_NOTEBOOK1
+                FROM '@NOTEBOOK_PROJECT_STAGE1';
+              
+              -- 3. List the files
+              LS 'snow://notebook_project/${{ vars.SNOWFLAKE_DATABASE }}.${{ vars.SNOWFLAKE_SCHEMA }}.ML_TRAIN_NOTEBOOK1/versions/head/';
+
+              -- 4. Add version
+              ALTER NOTEBOOK PROJECT ${{ vars.SNOWFLAKE_DATABASE }}.${{ vars.SNOWFLAKE_SCHEMA }}.ML_TRAIN_NOTEBOOK1 
+                ADD VERSION FROM '@NOTEBOOK_PROJECT_STAGE1';
+            "
