@@ -45,7 +45,7 @@ jobs:
               USE SCHEMA $SNOWFLAKE_SCHEMA;
 
               -- 1. Upload the notebook file (Stage creation removed as requested)
-              PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE1 AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+              PUT file://notebooks/ml_model/train.ipynb @NOTEBOOK_PROJECT_STAGE1 ;
 
               -- 2. Create Notebook Project 3
               CREATE NOTEBOOK PROJECT IF NOT EXISTS ML_TRAIN_NOTEBOOK3
