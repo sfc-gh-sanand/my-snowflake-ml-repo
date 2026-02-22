@@ -66,8 +66,9 @@ jobs:
               ADD VERSION FROM '@NOTEBOOK_PROJECT_STAGE1';
 
               --5. Execute Notebook Project with args
-              EXECUTE NOTEBOOK PROJECT \"$SNOWFLAKE_DATABASE\".\"$SNOWFLAKE_SCHEMA\".\"ML_TRAIN_NOTEBOOK3\"
+             EXECUTE NOTEBOOK PROJECT \"$SNOWFLAKE_DATABASE\".\"$SNOWFLAKE_SCHEMA\".\"ML_TRAIN_NOTEBOOK3\"
                 MAIN_FILE = 'notebooks/ml_model/train.ipynb'
+                REQUIREMENTS_FILE = 'requirements.txt'
                 COMPUTE_POOL = 'SYSTEM_COMPUTE_POOL_CPU'
                 RUNTIME = 'V2.2-CPU-PY3.12'
                 QUERY_WAREHOUSE = \"$SNOWFLAKE_WAREHOUSE\"
