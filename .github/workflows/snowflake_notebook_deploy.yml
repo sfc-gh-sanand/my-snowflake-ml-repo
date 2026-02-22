@@ -45,10 +45,14 @@ jobs:
               USE SCHEMA $SNOWFLAKE_SCHEMA;
 
               -- 1. Upload the notebook file (Stage creation removed as requested)
-              PUT 'file://./*' @NOTEBOOK_PROJECT_STAGE1 
-                RECURSIVE = TRUE 
+              PUT 'file://requirements.txt' @NOTEBOOK_PROJECT_STAGE1 
                 AUTO_COMPRESS = FALSE 
-                OVERWRITE = TRUE; ;
+                OVERWRITE = TRUE;
+
+              -- 2. Upload the notebook into its specific sub-folder
+              PUT 'file://notebooks/ml_model/train.ipynb' @NOTEBOOK_PROJECT_STAGE1/notebooks/ml_model/ 
+                AUTO_COMPRESS = FALSE 
+                OVERWRITE = TRUE;
 
               -- 2. Create Notebook Project 3
               CREATE NOTEBOOK PROJECT IF NOT EXISTS ML_TRAIN_NOTEBOOK3
